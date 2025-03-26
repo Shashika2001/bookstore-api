@@ -13,5 +13,7 @@ func SetupRouter() *mux.Router {
 	router.HandleFunc("/books/{id}", handlers.GetBookByID).Methods("GET")
 	router.HandleFunc("/books/{id}", handlers.UpdateBook).Methods("PUT")
 	router.HandleFunc("/books/{id}", handlers.DeleteBook).Methods("DELETE")
+	router.HandleFunc("/books/search", handlers.SearchBooks).Methods("GET")
+
 	return router
 }

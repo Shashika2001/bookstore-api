@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -61,4 +62,64 @@ func DeleteBook(id string) bool {
 		return true
 	}
 	return false
+}
+
+func SearchBooksConcurrently(query string) []models.Book {
+	mu.Lock()
+	defer mu.Unlock()
+
+	numWorkers := 4 // Number of goroutines
+	bookList := GetAllBooks()
+	bookCount := len(bookList)
+	if bookCount == 0 {
+		return []models.Book{}
+	}
+
+	// Define chunk size for each worker
+	chunkSize := (bookCount + numWorkers - 1) / numWorkers
+
+	// Channel to collect results
+	results := make(chan []models.Book, numWorkers)
+	var wg sync.WaitGroup
+
+	// Split search into concurrent tasks
+	for i := 0; i < numWorkers; i++ {
+		start := i * chunkSize
+		end := start + chunkSize
+		if end > bookCount {
+			end = bookCount
+		}
+		wg.Add(1)
+		go func(subBooks []models.Book) {
+			defer wg.Done()
+			matchingBooks := searchBooks(subBooks, query)
+			results <- matchingBooks
+		}(bookList[start:end])
+	}
+
+	// Close results channel once all workers finish
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Collect results from all workers
+	var finalResults []models.Book
+	for books := range results {
+		finalResults = append(finalResults, books...)
+	}
+
+	return finalResults
+}
+
+// searchBooks filters books by checking if the query is present in title or description
+func searchBooks(books []models.Book, query string) []models.Book {
+	var matched []models.Book
+	for _, book := range books {
+		if strings.Contains(strings.ToLower(book.Title), query) ||
+			strings.Contains(strings.ToLower(book.Description), query) {
+			matched = append(matched, book)
+		}
+	}
+	return matched
 }

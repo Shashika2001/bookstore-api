@@ -3,6 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
+	
 
 	"github.com/gorilla/mux"
 	"github.com/Shashika2001/bookstore-api/models"
@@ -64,4 +66,20 @@ func DeleteBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func SearchBooks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Get the query parameter
+	query := strings.ToLower(r.URL.Query().Get("q"))
+	if query == "" {
+		http.Error(w, "Missing search query", http.StatusBadRequest)
+		return
+	}
+
+	// Perform concurrent search
+	result := storage.SearchBooksConcurrently(query)
+
+	json.NewEncoder(w).Encode(result)
 }
